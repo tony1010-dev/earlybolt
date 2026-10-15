@@ -103,8 +103,11 @@ struct ToolStatus {
     installed: Option<bool>,
     /// None: no reliable way to check (Antigravity)
     logged_in: Option<bool>,
-    /// "installing" | "signing_in"
+    /// "installing" | "signing_in" | "awaiting_code" | "verifying"
     busy: Option<String>,
+    /// Antigravity sign-in: when the CLI stops waiting for the code (unix seconds), and the URL to reopen
+    code_deadline: Option<i64>,
+    sign_in_url: Option<String>,
 }
 
 struct Core {
@@ -118,6 +121,8 @@ struct Core {
     log_dir: PathBuf,
     mini_awake: Mutex<Option<platform::Awake>>,
     wake_message: Mutex<String>,
+    /// stdin of `agy` while it waits for the pasted authorization code
+    agy_stdin: Mutex<Option<std::process::ChildStdin>>,
 }
 
 impl Core {
@@ -238,6 +243,12 @@ fn check_tools(core: &Core, path: &str) {
                 "codex" => Some(platform::run_tool(&["codex".into(), "login".into(), "status".into()],
                                                    path, &core.log_dir, Duration::from_secs(20)).0),
                 "grok" => Some(home.join(".grok").join("auth.json").exists()),
+                // The token file is where macOS/Linux keep it; elsewhere fall back to the last ping result
+                "agy" => {
+                    let token = home.join(".gemini").join("antigravity-cli").join("antigravity-oauth-token");
+                    let pinged_ok = core.settings.lock().unwrap().results.get("agy").map(|r| r.ok);
+                    Some(token.exists() || pinged_ok == Some(true))
+                }
                 _ => None,
             }
         };
@@ -427,6 +438,8 @@ struct ToolDto {
     installed: Option<bool>,
     logged_in: Option<bool>,
     busy: Option<String>,
+    code_deadline: Option<i64>,
+    sign_in_url: Option<String>,
     result: Option<ToolResult>,
 }
 
@@ -491,6 +504,8 @@ fn get_state(app: AppHandle, core: State<Arc<Core>>) -> StateDto {
                 installed: ts.installed,
                 logged_in: ts.logged_in,
                 busy: ts.busy,
+                code_deadline: ts.code_deadline,
+                sign_in_url: ts.sign_in_url,
                 result: s.results.get(t.id).cloned(),
             }
         }).collect(),
@@ -594,6 +609,10 @@ fn install_tool(app: AppHandle, core: State<Arc<Core>>, id: String) {
 fn login_tool(app: AppHandle, core: State<Arc<Core>>, id: String) -> Result<(), String> {
     let core = core.inner().clone();
     let t = tools::all().into_iter().find(|t| t.id == id).ok_or("unknown tool")?;
+    // Windows has no `script` for a pseudo-terminal, so it uses the visible terminal like the others
+    if t.id == "agy" && cfg!(not(windows)) {
+        return agy_sign_in(app, core);
+    }
     platform::open_login_terminal(t.login, &platform::user_path(), core.ko())?;
     set_busy(&core, t.id, Some("signing_in"));
     let _ = app.emit("changed", ());
@@ -610,6 +629,113 @@ fn login_tool(app: AppHandle, core: State<Arc<Core>>, id: String) -> Result<(), 
         set_busy(&core, t.id, None);
         let _ = app.emit("changed", ());
     });
+    Ok(())
+}
+
+/// Antigravity prints a Google sign-in URL instead of opening the browser, then waits ~60 s for the
+/// browser to finish or for the authorization code to be pasted back. It only starts that flow on a
+/// terminal (a piped stdin makes it fail at once), so on macOS run it under a pseudo-terminal via
+/// `script`, open the URL for the user, and forward the code typed into the panel.
+fn agy_sign_in(app: AppHandle, core: Arc<Core>) -> Result<(), String> {
+    use std::io::{BufRead, BufReader};
+    use std::process::Stdio;
+
+    let path = platform::user_path();
+    let exe = platform::find_exe("agy", &path).ok_or("agy not found")?;
+    let _ = std::fs::create_dir_all(&core.log_dir);
+    let mut child = platform::command("/usr/bin/script")
+        .arg("-q").arg("/dev/null").arg(exe).args(["-p", "ok"])
+        .env("PATH", &path)
+        .current_dir(&core.log_dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    *core.agy_stdin.lock().unwrap() = child.stdin.take();
+    set_busy(&core, "agy", Some("signing_in"));
+    let _ = app.emit("changed", ());
+
+    // Watch both streams for the sign-in URL
+    for stream in [child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
+                   child.stderr.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>)].into_iter().flatten() {
+        let (app, core) = (app.clone(), core.clone());
+        thread::spawn(move || {
+            for line in BufReader::new(stream).lines().map_while(Result::ok) {
+                let Some(i) = line.find("https://accounts.google.com") else { continue };
+                // Terminal output: stop at whitespace or the next escape sequence
+                let url: String = line[i..].chars().take_while(|c| !c.is_whitespace() && *c != '\x1b').collect();
+                {
+                    let mut st = core.status.lock().unwrap();
+                    let e = st.entry("agy".into()).or_default();
+                    e.busy = Some("awaiting_code".into());
+                    e.code_deadline = Some(Local::now().timestamp() + 60);
+                    e.sign_in_url = Some(url.clone());
+                }
+                let _ = app.opener().open_url(&url, None::<&str>);
+                let _ = app.emit("changed", ());
+            }
+        });
+    }
+
+    // Wait for agy to finish (signed in, timed out or failed), with a hard stop after 3 minutes
+    thread::spawn(move || {
+        let start = std::time::Instant::now();
+        let ok = loop {
+            match child.try_wait() {
+                Ok(Some(st)) => break st.success(),
+                Ok(None) if start.elapsed() > Duration::from_secs(180) => {
+                    let _ = child.kill();
+                    break false;
+                }
+                Ok(None) => thread::sleep(Duration::from_millis(300)),
+                Err(_) => break false,
+            }
+        };
+        *core.agy_stdin.lock().unwrap() = None;
+        {
+            let mut st = core.status.lock().unwrap();
+            let e = st.entry("agy".into()).or_default();
+            e.busy = None;
+            e.code_deadline = None;
+            e.sign_in_url = None;
+        }
+        check_tools(&core, &platform::user_path());
+        let signed_in = core.status.lock().unwrap().get("agy").and_then(|s| s.logged_in) == Some(true);
+        core.log(&format!("Antigravity sign-in {}", if ok && signed_in { "done" } else { "FAILED" }));
+        if !(ok && signed_in) {
+            let body = core.t("Antigravity sign-in didn't finish. Try again and paste the code within 60 seconds.",
+                              "Antigravity 로그인이 끝나지 않았어요. 다시 시도하고 60초 안에 코드를 붙여넣어 주세요.");
+            let _ = app.notification().builder().title("Earlybolt").body(body).show();
+        }
+        let _ = app.emit("changed", ());
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn reopen_sign_in(app: AppHandle, core: State<Arc<Core>>) {
+    let url = core.status.lock().unwrap().get("agy").and_then(|s| s.sign_in_url.clone());
+    if let Some(url) = url {
+        let _ = app.opener().open_url(url, None::<&str>);
+    }
+}
+
+/// The authorization code the user pasted from the browser (Antigravity sign-in)
+#[tauri::command]
+fn submit_code(app: AppHandle, core: State<Arc<Core>>, code: String) -> Result<(), String> {
+    let code = code.trim();
+    if code.is_empty() {
+        return Err("empty code".into());
+    }
+    let mut stdin = core.agy_stdin.lock().unwrap();
+    let pipe = stdin.as_mut().ok_or("sign-in is no longer waiting for a code")?;
+    // A carriage return is Enter on a terminal (and is read as a newline in line mode)
+    write!(pipe, "{code}\r").map_err(|e| e.to_string())?;
+    let _ = pipe.flush();
+    drop(stdin);
+    set_busy(&core, "agy", Some("verifying"));
+    let _ = app.emit("changed", ());
     Ok(())
 }
 
@@ -701,7 +827,7 @@ pub fn run() {
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            get_state, update_settings, run_now, refresh_tools, install_tool, login_tool,
+            get_state, update_settings, run_now, refresh_tools, install_tool, login_tool, submit_code, reopen_sign_in,
             set_wake, set_autostart, open_log, show_guide, fit_panel, hide_panel, quit
         ])
         .setup(move |app| {
@@ -722,6 +848,7 @@ pub fn run() {
                 log_dir,
                 mini_awake: Mutex::new(None),
                 wake_message: Mutex::new(String::new()),
+                agy_stdin: Mutex::new(None),
             });
             app.manage(core.clone());
 
@@ -738,6 +865,11 @@ pub fn run() {
             }
 
             platform::cleanup_legacy();
+
+            // Development only: start the Antigravity sign-in right away to test that flow
+            if dev && std::env::var("EARLYBOLT_DEV_AGY_SIGN_IN").is_ok() {
+                let _ = agy_sign_in(app.handle().clone(), core.clone());
+            }
 
             TrayIconBuilder::with_id("main")
                 .icon(tray_icon(&core))

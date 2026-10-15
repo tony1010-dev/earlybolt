@@ -1,6 +1,6 @@
 [package]
 name = "earlybolt"
-version = "1.0.0"
+version = "1.0.1"
 description = "Start your AI subscription 5-hour usage windows on your schedule"
 edition = "2021"
 

@@ -65,6 +65,8 @@ Each ping goes out 2 minutes after the previous window ends, so a ping never lan
 1. Click **⚡** in the menu bar / tray.
 2. Open **⚙ Settings** and click **Install** next to the services you use.
 3. Click **Sign in** — your browser opens; sign in with your email or Google account as usual. Close the terminal window that appears afterwards.
+   **Antigravity** shows a code in the browser after you sign in: paste it into the box that appears in Earlybolt within 60 seconds (macOS). On Windows, paste it into the terminal window.
+   Already signed in to these CLIs in your terminal? Earlybolt picks that up — nothing to do.
 4. Set **Work starts**; click **Use 06:00** (or whatever it recommends). Done.
 
 ## Privacy & safety
@@ -149,6 +151,8 @@ irm https://raw.githubusercontent.com/tony1010-dev/earlybolt/main/install.ps1 | 
 1. 메뉴 막대 / 트레이의 **⚡** 클릭
 2. **⚙ 설정**에서 쓰는 서비스의 **설치** 클릭 (각 회사 공식 CLI 자동 설치)
 3. **로그인** 클릭 → 브라우저에서 평소처럼 이메일·Google 로그인
+   **Antigravity**는 로그인 후 브라우저에 코드가 표시돼요. Earlybolt에 나타나는 입력칸에 60초 안에 붙여넣으세요(macOS). Windows는 터미널 창에 붙여넣으면 돼요.
+   터미널에서 이미 CLI에 로그인해 두었다면 Earlybolt가 그대로 불러와요.
 4. **업무 시작** 시각을 정하고 추천 첫 호출 **적용** — 끝
 
 - **맥미니 / 데스크톱 모드**: 켜져 있는 동안 시스템 잠자기만 막습니다(화면은 꺼져도 됨).

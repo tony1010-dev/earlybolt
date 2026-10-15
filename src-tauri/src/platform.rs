@@ -205,7 +205,13 @@ pub fn open_login_terminal(login: &str, path: &str, ko: bool) -> Result<(), Stri
     }
     #[cfg(windows)]
     {
-        let ps = format!("$env:Path = '{}'; Write-Host '{msg}'; Write-Host ''; {login}", path.replace('\'', "''"));
+        // Antigravity prints a link and waits for a code instead of opening the browser
+        let extra = if !login.starts_with("agy") { "" } else if ko {
+            "Write-Host '아래 링크를 Ctrl+클릭해 로그인하고, 브라우저에 표시된 코드를 60초 안에 여기 붙여넣으세요.' -ForegroundColor Yellow; "
+        } else {
+            "Write-Host 'Ctrl+click the link below, sign in, then paste the code shown in the browser here within 60 seconds.' -ForegroundColor Yellow; "
+        };
+        let ps = format!("$env:Path = '{}'; Write-Host '{msg}'; {extra}Write-Host ''; {login}", path.replace('\'', "''"));
         Command::new("powershell")
             .args(["-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps])
             .creation_flags(CREATE_NEW_CONSOLE)

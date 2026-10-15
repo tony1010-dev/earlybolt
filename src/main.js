@@ -88,9 +88,19 @@ function renderHome() {
 
 function renderSettings() {
   const s = state;
+  // Keep a half-typed code across the 5-second refreshes
+  const typed = $("code-agy") ? $("code-agy").value : "";
+  const hadFocus = document.activeElement && document.activeElement.id === "code-agy";
   $("connTools").innerHTML = s.tools.map((t) => {
-    let right;
-    if (t.busy) right = `<span class="muted">${t.busy === "installing" ? T.installing : T.signingIn}</span>`;
+    let right, extra = "";
+    if (t.busy === "awaiting_code") {
+      // Antigravity: the browser shows a code that has to be pasted back within ~60 seconds
+      const left = Math.max(0, (t.code_deadline || 0) - Math.floor(Date.now() / 1000));
+      right = `<input class="code" id="code-agy" placeholder="${T.pasteCode}" spellcheck="false" autocomplete="off">
+        <button class="mini primary" data-code="${t.id}">OK</button>
+        <button class="mini ghost" data-reopen="1" title="${T.reopen}">↗</button>`;
+      extra = `<div class="hint code-hint">${T.codeHint(left)}</div>`;
+    } else if (t.busy) right = `<span class="muted">${({ installing: T.installing, verifying: T.verifying })[t.busy] || T.signingIn}</span>`;
     else if (t.installed === null) right = `<span class="faint">…</span>`;
     else if (!t.installed) right = `<button class="mini primary" data-install="${t.id}">${T.install}</button>`;
     else {
@@ -100,8 +110,12 @@ function renderSettings() {
         // Antigravity's sign-in state can't be checked, so its button stays neutral until a ping succeeds
         : `<span class="faint">${T.installed}</span><button class="mini ${t.logged_in === false ? "primary" : ""}" data-login="${t.id}">${T.signIn}</button>`;
     }
-    return `<div class="trow">${badge(t.id)}<span class="name grow">${t.name}</span><span class="stat row">${right}</span></div>`;
+    return `<div class="trow">${badge(t.id)}<span class="name grow">${t.name}</span><span class="stat row">${right}</span></div>${extra}`;
   }).join("");
+  if ($("code-agy")) {
+    $("code-agy").value = typed;
+    if (hadFocus || !typed) $("code-agy").focus();
+  }
 
   const mac = s.os === "macos";
   $("modeMini").textContent = mac ? T.miniMac : T.miniWin;
@@ -180,7 +194,15 @@ $("connTools").onclick = (e) => {
   const d = e.target.dataset;
   if (d.install) invoke("install_tool", { id: d.install }).then(refresh);
   if (d.login) invoke("login_tool", { id: d.login }).then(refresh).catch((err) => alert(err));
+  if (d.code) submitCode();
+  if (d.reopen) invoke("reopen_sign_in");
 };
+$("connTools").onkeydown = (e) => { if (e.key === "Enter" && e.target.id === "code-agy") submitCode(); };
+
+function submitCode() {
+  const code = $("code-agy") ? $("code-agy").value : "";
+  if (code.trim()) invoke("submit_code", { code }).then(refresh).catch((err) => alert(err));
+}
 $("mode").onclick = (e) => { const m = e.target.dataset.mode; if (m) patch({ mode: m }); };
 $("wakeOn").onclick = async () => { await invoke("set_wake", { on: true }); refresh(); };
 $("wakeOff").onclick = async () => { await invoke("set_wake", { on: false }); refresh(); };
@@ -200,10 +222,13 @@ document.addEventListener("keydown", (e) => {
 listen("changed", refresh);
 listen("panel-shown", () => {
   // First-time users land in Settings to connect their services
-  if (state && !state.tools.some(ready)) show("settings");
+  // …and anyone mid-way through the Antigravity code step goes straight back to the code box
+  if (state && (!state.tools.some(ready) || state.tools.some((t) => t.busy === "awaiting_code"))) show("settings");
   invoke("refresh_tools");
   refresh();
 });
 listen("show-view", (e) => show(e.payload));
 setInterval(refresh, 5000);
+// Tick the code countdown every second while waiting for it
+setInterval(() => { if (state && state.tools.some((t) => t.busy === "awaiting_code")) refresh(); }, 1000);
 refresh();

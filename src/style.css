@@ -115,6 +115,12 @@ html[lang=ko] h3 { text-transform: none; letter-spacing: 0; }
 .stepper button { padding: 0 9px; }
 label.check { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; }
 .version { margin-top: 10px; color: var(--faint); }
+input.code {
+  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--accent); border-radius: 6px; padding: 3px 6px; width: 130px;
+  -webkit-user-select: text; user-select: text;
+}
+.code-hint { margin: -4px 0 6px 31px; white-space: normal; }
 
 /* Guide window */
 .guide { max-width: 660px; margin: 0 auto; padding: 28px 30px 44px; -webkit-user-select: text; user-select: text; font-size: 14px; line-height: 1.65; }

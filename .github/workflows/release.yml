@@ -1,0 +1,56 @@
+# Builds the macOS (universal .dmg) and Windows (.exe installer) apps and publishes them
+# to a GitHub Release when a version tag is pushed:  git tag v1.0.0 && git push --tags
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: windows-latest
+            args: ""
+            rust_targets: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Earlybolt ${{ github.ref_name }}"
+          releaseBody: |
+            **macOS** — `curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash`
+            **Windows** — `irm https://raw.githubusercontent.com/${{ github.repository }}/main/install.ps1 | iex`
+
+            Or download the file for your system below. See the README for details.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

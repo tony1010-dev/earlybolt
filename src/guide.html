@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" class="scroll">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earlybolt Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="guide">
+
+<!-- English -->
+<div data-lang="en">
+  <h1>⚡ Earlybolt</h1>
+  <p class="muted">Earlybolt starts the <b>5-hour usage windows</b> of your Claude, Codex, Grok and Antigravity subscriptions on your schedule, so they reset when you need them. Works on macOS and Windows.</p>
+
+  <h2>Get started</h2>
+  <ol>
+    <li>Click the <b>⚡</b> icon in the menu bar (Mac) or the system tray (Windows).</li>
+    <li>Open <b>⚙ Settings</b> and click <b>Install</b> next to the services you use. Earlybolt runs each vendor's official installer.</li>
+    <li>Click <b>Sign in</b>. Your browser opens; sign in with your email or Google account as usual. You can close the terminal window that appears afterwards.</li>
+  </ol>
+  <p class="note">Earlybolt never sees or stores your password. Sign-in is handled by each vendor's official CLI; Earlybolt only asks that CLI to reply "ok".</p>
+
+  <h2>What is a 5-hour window?</h2>
+  <p>These services limit usage per 5-hour window and per week. A window does not start at a fixed time — it starts <b>with your first message</b> and resets to 100% five hours later.</p>
+
+  <h2>Why ping early, and every 5 hours?</h2>
+  <p>Start work at 9:00 and your first window opens at 9:00 and resets at <b>14:00</b>. Burn through it in the morning and you wait until mid-afternoon.</p>
+  <p>Send a one-word "ok" at 6:00 and the window opens at 6:00 and resets at <b>11:00</b>. You get two hours at 100% from 9:00, then a fresh 100% at 11:00.</p>
+  <p>Earlybolt then pings <b>2 minutes after each window ends</b>, so the next window opens right away even if you step out for lunch or a meeting. Resets land at the same, predictable times every day. The 2-minute margin avoids a wasted ping just before a reset.</p>
+
+  <h2>Recommended schedule</h2>
+  <p>First ping <b>3 hours before work</b> → first reset 2 hours into your day. For a 9:00 start:</p>
+  <table>
+    <tr><th>Ping</th><th>Window</th><th></th></tr>
+    <tr><td>06:00</td><td>06:00–11:00</td><td class="muted">2 h of work before reset</td></tr>
+    <tr><td>11:02</td><td>11:02–16:02</td><td></td></tr>
+    <tr><td>16:04</td><td>16:04–21:04</td><td></td></tr>
+    <tr><td>21:06</td><td>21:06–02:06</td><td class="muted">evening work</td></tr>
+  </table>
+  <p class="note">Change your work start time in Settings and the recommended first ping updates with it. Up to 4 pings a day (about 20 hours) — a 5th would overlap the next day's first ping.</p>
+
+  <h2>Always-on machine (Mac mini, desktop)</h2>
+  <p>Choose <b>Mac mini</b> / <b>Desktop</b> (the default). While Earlybolt is on it blocks system sleep only (the display can still sleep) and pings on schedule. Nothing else to set up.</p>
+  <p class="note">Running a headless Mac mini? Turn on <i>System Settings › Users & Groups › Automatically log in</i>. Earlybolt runs in your logged-in session.</p>
+
+  <h2>Laptop (MacBook, Windows laptop)</h2>
+  <p><b>MacBook</b> / <b>Laptop</b> mode doesn't block sleep. Click <b>Set wake</b> so the computer wakes just before pinging.</p>
+  <ul>
+    <li><b>Windows</b> wakes 1 minute before every ping (Task Scheduler) and stays in sync when you change the schedule. <i>Power Options › Sleep › Allow wake timers</i> must be enabled.</li>
+    <li><b>macOS</b> allows one repeating wake per day, so it wakes 1 minute before the first ping (admin password required). Set it again if you change the first ping.</li>
+  </ul>
+  <p class="note">Keep a closed laptop plugged in for reliable wake. A slot missed by more than 10 minutes is skipped, because opening a window at a random later time would shift the whole day.</p>
+
+  <h2>On / Off</h2>
+  <p>Use the switch at the top right of the panel. When you turn it back on, pinging resumes from the <b>next scheduled time</b>, not immediately. Each service also has its own switch.</p>
+
+  <h2>Does this eat my weekly limit?</h2>
+  <p>Barely. Each ping asks the lightest model for a one-word reply. If a ping fails you get a notification and a ⚠ icon — usually the sign-in expired, so click <b>Sign in</b> again in Settings.</p>
+
+  <h2>Uninstall</h2>
+  <ul>
+    <li><b>Windows</b>: Settings › Apps › Installed apps › Earlybolt › Uninstall</li>
+    <li><b>macOS</b>: quit Earlybolt, then move it from Applications to the Trash</li>
+  </ul>
+  <p class="note">If you set a laptop wake schedule, click <b>Remove</b> before uninstalling.</p>
+</div>
+
+<!-- 한국어 -->
+<div data-lang="ko">
+  <h1>⚡ Earlybolt</h1>
+  <p class="muted">Claude · Codex · Grok · Antigravity 구독의 <b>5시간 사용량 창</b>을 내 일정에 맞춰 미리 열어, 필요할 때 리셋되게 해 주는 앱입니다. macOS와 Windows에서 동작합니다.</p>
+
+  <h2>시작하기</h2>
+  <ol>
+    <li>메뉴 막대(Mac) 또는 작업 표시줄 트레이(Windows)의 <b>⚡</b> 아이콘을 누릅니다.</li>
+    <li><b>⚙ 설정</b>에서 쓰는 서비스 옆의 <b>설치</b>를 누릅니다. 각 회사의 공식 설치 프로그램을 실행합니다.</li>
+    <li><b>로그인</b>을 누르면 브라우저가 열립니다. 평소처럼 이메일·Google 계정으로 로그인하세요. 함께 뜨는 터미널 창은 로그인 후 닫아도 됩니다.</li>
+  </ol>
+  <p class="note">비밀번호는 Earlybolt가 보거나 저장하지 않습니다. 로그인은 각 회사의 공식 CLI가 처리하고, Earlybolt는 그 CLI에 "ok" 한 마디를 요청할 뿐입니다.</p>
+
+  <h2>5시간 창이란?</h2>
+  <p>각 서비스는 5시간 단위 한도와 주간 한도를 둡니다. 5시간 창은 정해진 시각이 아니라 <b>첫 메시지를 보낸 순간</b> 시작돼 5시간 뒤 100%로 리셋됩니다.</p>
+
+  <h2>왜 미리, 그리고 5시간마다 호출하나요?</h2>
+  <p>9시에 일을 시작하면 첫 창은 9시에 열려 <b>14시</b>에 리셋됩니다. 오전에 다 쓰면 오후까지 기다려야 하죠.</p>
+  <p>6시에 "ok" 한 마디를 미리 보내 두면 창이 6시에 열려 <b>11시</b>에 리셋됩니다. 9시부터 2시간 100%를 쓰고, 11시에 다시 100%를 받습니다.</p>
+  <p>이후 <b>창이 끝나고 2분 뒤마다</b> 호출해, 점심·회의로 자리를 비워도 다음 창이 바로 열립니다. 리셋 시각이 매일 같아 예측하기 쉽습니다. 2분 여유는 리셋 직전 헛호출을 막기 위함입니다.</p>
+
+  <h2>추천 일정</h2>
+  <p>업무 시작 <b>3시간 전</b> 첫 호출 → 시작 2시간 뒤 첫 리셋. 9시 시작 기준:</p>
+  <table>
+    <tr><th>호출</th><th>열리는 창</th><th></th></tr>
+    <tr><td>06:00</td><td>06:00–11:00</td><td class="muted">출근 후 2시간 사용</td></tr>
+    <tr><td>11:02</td><td>11:02–16:02</td><td></td></tr>
+    <tr><td>16:04</td><td>16:04–21:04</td><td></td></tr>
+    <tr><td>21:06</td><td>21:06–02:06</td><td class="muted">저녁 작업</td></tr>
+  </table>
+  <p class="note">설정에서 업무 시작 시각을 바꾸면 추천 첫 호출 시각도 함께 바뀝니다. 하루 최대 4회(약 20시간)까지 — 5회째는 다음 날 첫 호출과 겹칩니다.</p>
+
+  <h2>항상 켜둔 기기 (맥미니 · 데스크톱)</h2>
+  <p><b>맥미니</b> / <b>데스크톱</b>(기본값)을 고르세요. 켜져 있는 동안 시스템 잠자기만 막고(화면은 꺼져도 됨) 예약 시각에 호출합니다. 따로 설정할 것이 없습니다.</p>
+  <p class="note">화면 없이 쓰는 맥미니라면 <i>시스템 설정 › 사용자 및 그룹 › 자동 로그인</i>을 켜 두세요. Earlybolt는 로그인된 세션에서 실행됩니다.</p>
+
+  <h2>노트북 (맥북 · Windows 노트북)</h2>
+  <p><b>맥북</b> / <b>노트북</b> 모드는 잠자기를 막지 않습니다. <b>자동 깨우기</b>를 누르면 호출 직전에 깨어납니다.</p>
+  <ul>
+    <li><b>Windows</b>: 호출마다 1분 전에 깨웁니다(작업 스케줄러). 일정을 바꾸면 자동으로 맞춰집니다. <i>전원 옵션 › 절전 › 절전 모드 해제 타이머 허용</i>이 켜져 있어야 합니다.</li>
+    <li><b>macOS</b>: 반복 깨우기는 하루 한 번만 가능해 첫 호출 1분 전에 깨웁니다(관리자 암호 필요). 첫 호출 시각을 바꾸면 다시 설정하세요.</li>
+  </ul>
+  <p class="note">덮개를 닫아 둘 땐 전원을 연결해야 깨우기가 확실합니다. 10분 넘게 놓친 호출은 건너뜁니다. 늦게 아무 때나 창을 열면 하루 일정이 틀어지기 때문입니다.</p>
+
+  <h2>켜기 / 끄기</h2>
+  <p>패널 오른쪽 위 스위치로 끄고 켭니다. 다시 켜면 즉시가 아니라 <b>다음 예약 시각</b>부터 호출합니다. 서비스마다 스위치도 따로 있습니다.</p>
+
+  <h2>주간 한도에 영향은?</h2>
+  <p>거의 없습니다. 가장 가벼운 모델에 한 마디만 요청합니다. 실패하면 알림과 ⚠ 아이콘이 뜨는데, 대부분 로그인이 풀린 경우이니 설정에서 <b>로그인</b>을 다시 누르세요.</p>
+
+  <h2>제거</h2>
+  <ul>
+    <li><b>Windows</b>: 설정 › 앱 › 설치된 앱 › Earlybolt › 제거</li>
+    <li><b>macOS</b>: Earlybolt 종료 후 응용 프로그램 폴더에서 휴지통으로</li>
+  </ul>
+  <p class="note">노트북 자동 깨우기를 설정했다면 제거 전에 <b>해제</b>를 눌러 주세요.</p>
+</div>
+
+</div>
+<script>
+  // Show the guide in the app's language and follow changes made in Settings
+  const { invoke } = window.__TAURI__.core;
+  const apply = async () => {
+    const { lang } = await invoke("get_state");
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-lang]").forEach((el) => el.classList.toggle("show", el.dataset.lang === lang));
+  };
+  window.__TAURI__.event.listen("changed", apply);
+  apply();
+</script>
+</body>
+</html>

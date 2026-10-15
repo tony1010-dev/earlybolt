@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Panel and guide windows",
+  "windows": ["panel", "guide"],
+  "permissions": ["core:default"]
+}

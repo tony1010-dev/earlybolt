@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earlybolt</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Home -->
+<section class="view active" id="home">
+  <header class="row">
+    <div class="brand grow"><span class="bolt">⚡</span> Earlybolt</div>
+    <button class="icon" id="openSettings" data-i18n-title="settings">⚙</button>
+    <label class="switch" data-i18n-title="onOff"><input type="checkbox" id="enabled"><span></span></label>
+  </header>
+  <div class="status">
+    <div id="statusLine"></div>
+    <div class="bar" id="bar"><div id="barFill"></div></div>
+    <div id="summaryLine" class="small"></div>
+  </div>
+
+  <div class="card" id="homeTools"></div>
+
+  <div class="chips" id="chips"></div>
+
+  <footer class="row">
+    <button class="primary" id="runNow" data-i18n="pingNow" data-i18n-title="pingNowTip"></button>
+    <button id="log" data-i18n="log"></button>
+    <button id="guide" data-i18n="guide"></button>
+    <span class="grow"></span>
+    <button class="ghost" id="quit" data-i18n="quit"></button>
+  </footer>
+</section>
+
+<!-- Settings -->
+<section class="view" id="settings">
+  <header class="row">
+    <button class="icon" id="back">‹</button>
+    <div class="brand grow" data-i18n="settings"></div>
+  </header>
+
+  <h3 data-i18n="connections"></h3>
+  <div class="card" id="connTools"></div>
+
+  <h3 data-i18n="device"></h3>
+  <div class="seg" id="mode">
+    <button data-mode="mini" id="modeMini"></button>
+    <button data-mode="laptop" id="modeLaptop"></button>
+  </div>
+  <div class="hint" id="modeHint"></div>
+  <div class="row wake" id="wakeBox">
+    <button id="wakeOn" data-i18n="wakeOn"></button>
+    <button id="wakeOff" data-i18n="wakeOff"></button>
+    <span class="hint grow" id="wakeMsg"></span>
+  </div>
+
+  <h3 data-i18n="schedule"></h3>
+  <div class="grid">
+    <label data-i18n="workStart"></label>
+    <div class="row end"><input type="time" id="workStart"></div>
+    <label data-i18n="firstPing"></label>
+    <div class="row end"><button class="mini" id="applyRec"></button><input type="time" id="firstPing"></div>
+    <label data-i18n="perDay"></label>
+    <div class="row end stepper"><button id="minus">−</button><b id="count"></b><button id="plus">+</button></div>
+  </div>
+  <div class="hint" data-i18n="recHint"></div>
+
+  <h3 data-i18n="general"></h3>
+  <label class="check"><input type="checkbox" id="autostart"> <span data-i18n="autostart"></span></label>
+  <label class="check" id="trayTimeRow"><input type="checkbox" id="trayTime"> <span data-i18n="trayTime"></span></label>
+  <div class="grid">
+    <label data-i18n="language"></label>
+    <div class="seg small-seg" id="lang">
+      <button data-lang="en">English</button>
+      <button data-lang="ko">한국어</button>
+    </div>
+  </div>
+  <div class="hint version" id="version"></div>
+</section>
+<script src="i18n.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

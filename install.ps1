@@ -6,9 +6,15 @@ $ErrorActionPreference = "Stop"
 $repo = "tony1010-dev/earlybolt"
 Write-Host "Installing Earlybolt..." -ForegroundColor Yellow
 
-$release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ "User-Agent" = "earlybolt-installer" }
+try {
+    $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ "User-Agent" = "earlybolt-installer" }
+} catch { $release = $null }
 $asset = $release.assets | Where-Object { $_.name -like "*-setup.exe" } | Select-Object -First 1
-if (-not $asset) { throw "Could not find a Windows installer in the latest release: https://github.com/$repo/releases" }
+if (-not $asset) {
+    Write-Host "No Windows installer is published yet (the release may still be building)." -ForegroundColor Red
+    Write-Host "Check https://github.com/$repo/releases and try again in a few minutes."
+    return
+}
 
 $setup = Join-Path $env:TEMP $asset.name
 Invoke-WebRequest $asset.browser_download_url -OutFile $setup -UseBasicParsing

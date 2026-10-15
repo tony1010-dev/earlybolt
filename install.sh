@@ -13,10 +13,12 @@ fi
 
 echo "⚡ Installing Earlybolt…"
 
-url=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-  | grep -o '"browser_download_url": *"[^"]*\.dmg"' | head -1 | sed -E 's/.*"(https[^"]+)"/\1/')
+# No -f here: a missing release returns 404, which we explain below instead of failing silently
+release=$(curl -sSL "https://api.github.com/repos/$REPO/releases/latest" || true)
+url=$(printf '%s' "$release" | grep -o '"browser_download_url": *"[^"]*\.dmg"' | head -1 | sed -E 's/.*"(https[^"]+)"/\1/' || true)
 if [ -z "$url" ]; then
-  echo "Could not find a macOS download in the latest release: https://github.com/$REPO/releases"
+  echo "No macOS download is published yet (the release may still be building)."
+  echo "Check https://github.com/$REPO/releases and try again in a few minutes."
   exit 1
 fi
 

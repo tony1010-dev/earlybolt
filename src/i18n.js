@@ -54,7 +54,7 @@ window.I18N = {
     trayUsage: "Show usage in the menu bar",
     usage: "Usage",
     refresh: "Refresh",
-    kind: { "5h": "5h", week: "weekly", month: "monthly" },
+    kind: { "5h": "5h", week: "week", month: "month" },
     dh: (d, h) => `${d}d ${h}h`,
     hm: (h, m) => `${h}h ${m}m`,
     m: (m) => `${m}m`,

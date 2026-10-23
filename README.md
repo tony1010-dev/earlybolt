@@ -4,7 +4,7 @@
 
 **Start your AI subscription's 5-hour usage window *before* you start work — so it resets when you actually need it.**
 
-Claude · Codex · Grok · Antigravity &nbsp;|&nbsp; macOS · Windows &nbsp;|&nbsp; [한국어](#한국어)
+Claude · Codex · Grok · Antigravity · Muse · Kimi &nbsp;|&nbsp; macOS · Windows &nbsp;|&nbsp; [한국어](#한국어)
 
 <img src="docs/home.png" width="360" alt="Earlybolt panel"> &nbsp; <img src="docs/settings.png" width="360" alt="Earlybolt settings">
 
@@ -33,7 +33,7 @@ Or download the `.dmg` (macOS) / `-setup.exe` (Windows) from [Releases](https://
 
 ## Why
 
-Claude, ChatGPT (Codex), Grok and Google Antigravity subscriptions limit usage per **5-hour window** (plus a weekly cap). A window doesn't start at a fixed time — it starts **with your first message** and resets 5 hours later.
+Claude, ChatGPT (Codex), Grok, Google Antigravity, Meta Muse Code and Kimi Code subscriptions limit usage per **5-hour window** (plus a weekly cap). A window doesn't start at a fixed time — it starts **with your first message** and resets 5 hours later.
 
 Start work at 9:00 and your window resets at 14:00. Run out at 11:00 and you're stuck for three hours.
 
@@ -53,6 +53,7 @@ Each ping goes out 2 minutes after the previous window ends, so a ping never lan
 - **Menu bar (macOS) / system tray (Windows)** app — click ⚡ for the panel, right-click for quick actions
 - **One-click setup** — installs each service's official CLI and opens its browser sign-in. No terminal knowledge needed
 - **Progress at a glance** — `Pinging 2/4 · Codex…`, then `✓ 4/4 succeeded`
+- **Usage at a glance** — each service's 5-hour / weekly usage and time to reset (optionally in the menu bar), read with the CLIs' own sign-in; uses no quota
 - **Always-on vs. laptop modes**
   - *Mac mini / Desktop*: blocks system sleep while on (the display can still sleep)
   - *MacBook / Laptop*: wakes the computer before pings (Windows: before every ping; macOS: before the first ping of the day)
@@ -71,9 +72,9 @@ Each ping goes out 2 minutes after the previous window ends, so a ping never lan
 
 ## Privacy & safety
 
-- Earlybolt **never sees or stores your credentials**. Sign-in is handled entirely by each vendor's official CLI ([Claude Code](https://code.claude.com), [Codex CLI](https://github.com/openai/codex), [Grok CLI](https://x.ai/cli), [Antigravity CLI](https://antigravity.google)).
+- Earlybolt **never sees or stores your credentials**. Sign-in is handled entirely by each vendor's official CLI ([Claude Code](https://code.claude.com), [Codex CLI](https://github.com/openai/codex), [Grok CLI](https://x.ai/cli), [Antigravity CLI](https://antigravity.google), [Muse Code](https://dev.meta.ai/docs/muse-code/), [Kimi Code](https://www.kimi.com/code)).
 - A ping is just the official CLI asked to reply `ok`, on your own machine, with your own account — the same as typing it yourself.
-- Install buttons run each vendor's official install script (`claude.ai/install.sh`, `chatgpt.com/codex/install.sh`, `x.ai/cli/install.sh`, `antigravity.google/cli/install.sh`, or the `.ps1` equivalents on Windows).
+- Install buttons run each vendor's official install script (`claude.ai/install.sh`, `chatgpt.com/codex/install.sh`, `x.ai/cli/install.sh`, `antigravity.google/cli/install.sh`, `dev.meta.ai/install.sh`, `code.kimi.com/kimi-code/install.sh`, or the `.ps1` equivalents on Windows).
 - No telemetry. Settings and logs stay on your computer.
 
 ## FAQ
@@ -123,7 +124,7 @@ Earlybolt is an independent project, not affiliated with or endorsed by Anthropi
 ## 한국어
 
 **AI 구독의 5시간 사용량 창을 출근 전에 미리 열어, 정말 필요할 때 리셋되게 해 주는 앱입니다.**
-Claude · Codex · Grok · Antigravity / macOS · Windows 지원.
+Claude · Codex · Grok · Antigravity · Muse · Kimi / macOS · Windows 지원.
 
 ### 설치
 
@@ -158,6 +159,7 @@ irm https://raw.githubusercontent.com/tony1010-dev/earlybolt/main/install.ps1 | 
 - **맥미니 / 데스크톱 모드**: 켜져 있는 동안 시스템 잠자기만 막습니다(화면은 꺼져도 됨).
 - **맥북 / 노트북 모드**: **자동 깨우기**로 호출 직전에 깨웁니다 (Windows는 매 호출, macOS는 하루 첫 호출).
 - 호출 진행 상황이 `호출 중 2/4 · Codex…` → `✓ 4/4 호출 성공`으로 표시됩니다.
+- 서비스별 5시간 / 주간 사용량과 리셋까지 남은 시간을 보여줍니다(메뉴 막대 표시 선택 가능). 각 CLI의 로그인으로 읽기만 하고 사용량은 쓰지 않아요.
 - 설정 › 언어에서 **한국어**를 고르세요.
 
 ### 안전한가요?

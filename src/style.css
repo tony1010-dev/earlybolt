@@ -92,16 +92,19 @@ header { margin-bottom: 4px; }
 .usage-head .refresh { font-size: 14px; margin-top: 6px; }
 .refresh.spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.usage { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.usage { display: grid; gap: 5px; }
 .ucell {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0;
-  background: var(--card); border-radius: 9px; padding: 7px 9px 6px; min-height: 40px; font-size: 12px; font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--card); border-radius: 9px; padding: 6px 10px; min-height: 36px; font-size: 12px; font-variant-numeric: tabular-nums;
 }
-.ucell .badge { width: 18px; height: 18px; border-radius: 5px; font-size: 9px; }
-.ucell .pct { font-size: 13px; }
-.ucell .ulabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ucell > .faint:not(.ulabel) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-.ubar { flex-basis: 100%; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 3px; }
+.ucell .badge { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
+.ulines { flex: 1; min-width: 0; display: grid; row-gap: 2px; }
+.ulines > .faint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urow { display: grid; grid-template-columns: 104px 1fr 34px 76px; align-items: center; gap: 8px; }
+.ukind { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urow .pct { text-align: right; }
+.utime { text-align: right; white-space: nowrap; }
+.ubar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .ubar div { height: 100%; background: var(--ok); }
 .ubar div.warn { background: var(--accent); }
 .ubar div.bad { background: var(--bad); }

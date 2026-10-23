@@ -47,6 +47,21 @@ function until(ts) {
 const headline = (u) => u.windows.reduce((a, w) => (!a || w.used > a.used ? w : a), null);
 const windowName = (w) => `${w.group ? `${w.group} ` : ""}${T.kind[w.kind] || w.kind}`;
 
+/** The 5-hour and weekly windows to show; a service metering model groups separately shows its busiest group */
+function shownWindows(u) {
+  const top = headline(u);
+  const order = { "5h": 0, week: 1, month: 2 };
+  return u.windows.filter((w) => w.group === top.group).sort((a, b) => order[a.kind] - order[b.kind]);
+}
+
+function usageRow(w) {
+  const pct = Math.round(w.used);
+  const sev = pct >= 90 ? "bad" : pct >= 70 ? "warn" : "";
+  return `<div class="urow"><span class="faint ukind">${windowName(w)}</span>`
+    + `<div class="ubar"><div class="${sev}" style="width:${Math.max(pct, 1)}%"></div></div>`
+    + `<b class="pct ${sev}">${pct}%</b><span class="muted utime">${w.resets_at ? until(w.resets_at) : ""}</span></div>`;
+}
+
 function renderUsage() {
   const cells = state.tools.filter((t) => t.installed && t.has_usage).map((t) => {
     const u = t.usage;
@@ -58,15 +73,10 @@ function renderUsage() {
       tip = u.error;
     } else if (!u.windows.length) body = `<span class="faint">—</span>`;
     else {
-      const w = headline(u);
-      const pct = Math.round(w.used);
-      const sev = pct >= 90 ? "bad" : pct >= 70 ? "warn" : "";
-      body = `<b class="pct ${sev}">${pct}%</b><span class="faint ulabel grow">${windowName(w)}</span>`
-        + (w.resets_at ? `<span class="muted">${until(w.resets_at)}</span>` : "")
-        + `<div class="ubar"><div class="${sev}" style="width:${Math.max(pct, 1)}%"></div></div>`;
+      body = shownWindows(u).map(usageRow).join("");
       tip = u.windows.map((x) => `${windowName(x)}  ${Math.round(x.used)}%${x.resets_at ? ` · ${T.resets(when(x.resets_at))}` : ""}`).join("\n");
     }
-    return `<div class="ucell" title="${esc(tip)}">${badge(t.id)}${body}</div>`;
+    return `<div class="ucell" title="${esc(tip)}">${badge(t.id)}<div class="ulines">${body}</div></div>`;
   });
   $("usageBox").style.display = cells.length ? "" : "none";
   $("usage").innerHTML = cells.join("");

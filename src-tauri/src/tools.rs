@@ -63,5 +63,27 @@ pub fn all() -> Vec<Tool> {
             // No login subcommand: the browser sign-in opens on the first model call
             login: "agy -p ok",
         },
+        // Meta's coding agent; plans meter prompts per 5-hour window
+        Tool {
+            id: "muse",
+            name: "Muse",
+            light: vec![argv(&["muse", "exec", "--reasoning-effort", "minimal", "$P"])],
+            plain: vec![argv(&["muse", "exec", "$P"])],
+            install_sh: "curl -fsSL https://dev.meta.ai/install.sh | bash",
+            install_ps1: "irm https://dev.meta.ai/install.ps1 | iex",
+            // No login subcommand: the first run asks how to sign in (browser or API key)
+            login: "muse",
+        },
+        // Kimi Code: a 5-hour rate window on top of weekly credits
+        Tool {
+            id: "kimi",
+            name: "Kimi",
+            light: vec![argv(&["kimi", "-p", "$P"])],
+            plain: vec![argv(&["kimi", "-p", "$P"])],
+            install_sh: "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash",
+            install_ps1: "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+            // Sign-in is the /login command inside the interactive UI
+            login: "kimi",
+        },
     ]
 }

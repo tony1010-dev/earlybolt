@@ -12,6 +12,8 @@ const BADGE = {
   codex: { label: ">_", bg: "#1f1f1f" },
   grok: { label: "G", bg: "#3b3b3f" },
   agy: { label: "A", bg: "linear-gradient(135deg,#4285F4,#34A853)" },
+  muse: { label: "∞", bg: "#0866FF" },
+  kimi: { label: "K", bg: "#16191E" },
 };
 
 const hhmm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -33,6 +35,43 @@ const badge = (id) => `<span class="badge" style="background:${BADGE[id].bg}">${
 
 /** A tool is usable when it is installed and not known to be signed out */
 const ready = (t) => t.installed && t.logged_in !== false;
+
+/** Time until a reset: "2d 2h", "2h 53m", "12m" */
+function until(ts) {
+  const m = Math.max(0, Math.floor((ts - state.now) / 60));
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  return d ? T.dh(d, h) : h ? T.hm(h, m % 60) : T.m(m % 60);
+}
+
+/** The window closest to its limit decides what to show (ties keep the 5-hour window, listed first) */
+const headline = (u) => u.windows.reduce((a, w) => (!a || w.used > a.used ? w : a), null);
+const windowName = (w) => `${w.group ? `${w.group} ` : ""}${T.kind[w.kind] || w.kind}`;
+
+function renderUsage() {
+  const cells = state.tools.filter((t) => t.installed && t.has_usage).map((t) => {
+    const u = t.usage;
+    let body, tip = "";
+    if (!u) body = `<span class="faint">…</span>`;
+    else if (u.error) {
+      const msg = { stale: T.usageStale, signed_out: T.signInNeeded }[u.error] || T.usageError;
+      body = `<span class="faint">⚠ ${msg}</span>`;
+      tip = u.error;
+    } else if (!u.windows.length) body = `<span class="faint">—</span>`;
+    else {
+      const w = headline(u);
+      const pct = Math.round(w.used);
+      const sev = pct >= 90 ? "bad" : pct >= 70 ? "warn" : "";
+      body = `<b class="pct ${sev}">${pct}%</b><span class="faint ulabel grow">${windowName(w)}</span>`
+        + (w.resets_at ? `<span class="muted">${until(w.resets_at)}</span>` : "")
+        + `<div class="ubar"><div class="${sev}" style="width:${Math.max(pct, 1)}%"></div></div>`;
+      tip = u.windows.map((x) => `${windowName(x)}  ${Math.round(x.used)}%${x.resets_at ? ` · ${T.resets(when(x.resets_at))}` : ""}`).join("\n");
+    }
+    return `<div class="ucell" title="${esc(tip)}">${badge(t.id)}${body}</div>`;
+  });
+  $("usageBox").style.display = cells.length ? "" : "none";
+  $("usage").innerHTML = cells.join("");
+  $("usageRefresh").classList.toggle("spin", state.usage_busy);
+}
 
 function applyStatic() {
   document.documentElement.lang = state.lang;
@@ -80,6 +119,8 @@ function renderHome() {
       <label class="switch sm"><input type="checkbox" data-tool="${t.id}" ${t.on ? "checked" : ""} ${ready(t) ? "" : "disabled"}><span></span></label>
     </div>`;
   }).join("");
+
+  renderUsage();
 
   const nextHm = s.next_slot ? clock(s.next_slot) : null;
   $("chips").innerHTML = s.schedule.map((m) => `<span class="chip ${hhmm(m) === nextHm && s.enabled ? "next" : ""}">${hhmm(m)}</span>`).join("");
@@ -136,6 +177,8 @@ function renderSettings() {
   $("autostart").checked = s.autostart;
   $("trayTime").checked = s.show_time_in_tray;
   $("trayTimeRow").style.display = mac ? "" : "none";
+  $("trayUsage").checked = s.show_usage_in_tray;
+  $("trayUsageRow").style.display = mac ? "" : "none";
   for (const b of $("lang").children) b.classList.toggle("on", b.dataset.lang === s.lang);
   $("version").textContent = T.version(s.version);
 }
@@ -182,6 +225,7 @@ $("runNow").onclick = async () => { await invoke("run_now"); setTimeout(refresh,
 $("log").onclick = () => invoke("open_log");
 $("guide").onclick = () => invoke("show_guide");
 $("quit").onclick = () => invoke("quit");
+$("usageRefresh").onclick = () => invoke("refresh_usage_cmd", { force: true });
 $("homeTools").onclick = (e) => { if (e.target.dataset.goto) show("settings"); };
 $("homeTools").onchange = (e) => {
   const id = e.target.dataset.tool;
@@ -213,6 +257,7 @@ $("minus").onclick = () => patch({ pings_per_day: state.pings_per_day - 1 });
 $("plus").onclick = () => patch({ pings_per_day: state.pings_per_day + 1 });
 $("autostart").onchange = async (e) => { await invoke("set_autostart", { on: e.target.checked }); refresh(); };
 $("trayTime").onchange = (e) => patch({ show_time_in_tray: e.target.checked });
+$("trayUsage").onchange = (e) => patch({ show_usage_in_tray: e.target.checked });
 $("lang").onclick = (e) => { const l = e.target.dataset.lang; if (l) patch({ lang: l }); };
 
 document.addEventListener("keydown", (e) => {
@@ -225,6 +270,7 @@ listen("panel-shown", () => {
   // …and anyone mid-way through the Antigravity code step goes straight back to the code box
   if (state && (!state.tools.some(ready) || state.tools.some((t) => t.busy === "awaiting_code"))) show("settings");
   invoke("refresh_tools");
+  invoke("refresh_usage_cmd", { force: false });
   refresh();
 });
 listen("show-view", (e) => show(e.payload));

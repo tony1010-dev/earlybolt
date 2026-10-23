@@ -87,6 +87,26 @@ header { margin-bottom: 4px; }
 }
 .chip.next { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 
+/* Usage */
+.usage-head h3 { margin: 12px 0 6px; }
+.usage-head .refresh { font-size: 14px; margin-top: 6px; }
+.refresh.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.usage { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ucell {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0;
+  background: var(--card); border-radius: 9px; padding: 7px 9px 6px; min-height: 40px; font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.ucell .badge { width: 18px; height: 18px; border-radius: 5px; font-size: 9px; }
+.ucell .pct { font-size: 13px; }
+.ucell .ulabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucell > .faint:not(.ulabel) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.ubar { flex-basis: 100%; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 3px; }
+.ubar div { height: 100%; background: var(--ok); }
+.ubar div.warn { background: var(--accent); }
+.ubar div.bad { background: var(--bad); }
+.warn { color: var(--accent); }
+
 footer { gap: 6px; }
 
 /* Switch */

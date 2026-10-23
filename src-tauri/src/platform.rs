@@ -45,7 +45,7 @@ pub fn user_path() -> String {
         }
         let h = home().display().to_string();
         for d in ["/opt/homebrew/bin", "/usr/local/bin", &format!("{h}/.local/bin"), &format!("{h}/.grok/bin"),
-                  &format!("{h}/.npm-global/bin"), &format!("{h}/.bun/bin"), "/usr/bin", "/bin", "/usr/sbin", "/sbin"] {
+                  &format!("{h}/.kimi-code/bin"), &format!("{h}/.npm-global/bin"), &format!("{h}/.bun/bin"), "/usr/bin", "/bin", "/usr/sbin", "/sbin"] {
             parts.push(d.to_string());
         }
         parts.join(":")
@@ -72,7 +72,8 @@ pub fn user_path() -> String {
         let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
         let roaming = std::env::var("APPDATA").unwrap_or_default();
         for d in [format!(r"{h}\.local\bin"), format!(r"{local}\Programs\OpenAI\Codex\bin"),
-                  format!(r"{h}\.grok\bin"), format!(r"{local}\agy\bin"), format!(r"{roaming}\npm")] {
+                  format!(r"{h}\.grok\bin"), format!(r"{local}\agy\bin"), format!(r"{local}\Programs\muse"),
+                  format!(r"{h}\.kimi-code\bin"), format!(r"{roaming}\npm")] {
             parts.push(d);
         }
         parts.join(";")
@@ -194,9 +195,15 @@ pub fn open_login_terminal(login: &str, path: &str, ko: bool) -> Result<(), Stri
     } else {
         "Earlybolt: finish signing in in your browser, then you can close this window."
     };
+    // Kimi signs in from inside its own UI
+    let kimi = if login != "kimi" { "" } else if ko {
+        "Kimi 화면이 열리면 /login 을 입력하세요."
+    } else {
+        "When Kimi opens, type /login."
+    };
     #[cfg(not(windows))]
     {
-        let script = format!("export PATH='{}'; clear; echo '{msg}'; echo; {login}", path.replace('\'', ""));
+        let script = format!("export PATH='{}'; clear; echo '{msg}'; echo '{kimi}'; echo; {login}", path.replace('\'', ""));
         let r = command("/usr/bin/osascript")
             .args(["-e", &format!("tell application \"Terminal\" to do script \"{}\"", script.replace('"', "\\\"")),
                    "-e", "tell application \"Terminal\" to activate"])
@@ -211,7 +218,7 @@ pub fn open_login_terminal(login: &str, path: &str, ko: bool) -> Result<(), Stri
         } else {
             "Write-Host 'Ctrl+click the link below, sign in, then paste the code shown in the browser here within 60 seconds.' -ForegroundColor Yellow; "
         };
-        let ps = format!("$env:Path = '{}'; Write-Host '{msg}'; {extra}Write-Host ''; {login}", path.replace('\'', "''"));
+        let ps = format!("$env:Path = '{}'; Write-Host '{msg}'; Write-Host '{kimi}' -ForegroundColor Yellow; {extra}Write-Host ''; {login}", path.replace('\'', "''"));
         Command::new("powershell")
             .args(["-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps])
             .creation_flags(CREATE_NEW_CONSOLE)

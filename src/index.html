@@ -22,6 +22,11 @@
 
   <div class="card" id="homeTools"></div>
 
+  <div id="usageBox">
+    <div class="row usage-head"><h3 class="grow" data-i18n="usage"></h3><button class="icon refresh" id="usageRefresh" data-i18n-title="refresh">↻</button></div>
+    <div class="usage" id="usage"></div>
+  </div>
+
   <div class="chips" id="chips"></div>
 
   <footer class="row">
@@ -69,6 +74,7 @@
   <h3 data-i18n="general"></h3>
   <label class="check"><input type="checkbox" id="autostart"> <span data-i18n="autostart"></span></label>
   <label class="check" id="trayTimeRow"><input type="checkbox" id="trayTime"> <span data-i18n="trayTime"></span></label>
+  <label class="check" id="trayUsageRow"><input type="checkbox" id="trayUsage"> <span data-i18n="trayUsage"></span></label>
   <div class="grid">
     <label data-i18n="language"></label>
     <div class="seg small-seg" id="lang">

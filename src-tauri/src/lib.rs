@@ -1,5 +1,6 @@
 mod platform;
 mod tools;
+mod usage;
 
 use chrono::{DateTime, Duration as CDuration, Local, TimeZone};
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,8 @@ use tauri_plugin_positioner::{Position, WindowExt as _};
 const GAP: u32 = 5 * 60 + 2;
 const CALL_TIMEOUT: Duration = Duration::from_secs(180);
 const PANEL_WIDTH: f64 = 400.0;
+/// Usage is read-only and cheap, but no need to ask more often than this
+const USAGE_EVERY: i64 = 5 * 60;
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -70,6 +73,7 @@ struct Settings {
     pings_per_day: u32,
     tools_on: HashMap<String, bool>,
     show_time_in_tray: bool,
+    show_usage_in_tray: bool,
     wake_enabled: bool,
     /// Latest slot already handled, so a slot never fires twice
     last_slot: i64,
@@ -89,6 +93,7 @@ impl Default for Settings {
             pings_per_day: 4,
             tools_on: HashMap::new(),
             show_time_in_tray: false,
+            show_usage_in_tray: false,
             wake_enabled: false,
             last_slot: Local::now().timestamp(),
             results: HashMap::new(),
@@ -123,6 +128,10 @@ struct Core {
     wake_message: Mutex<String>,
     /// stdin of `agy` while it waits for the pasted authorization code
     agy_stdin: Mutex<Option<std::process::ChildStdin>>,
+    usage: Mutex<HashMap<String, usage::Usage>>,
+    usage_busy: AtomicBool,
+    /// When usage was last refreshed (unix seconds)
+    usage_at: AtomicI64,
 }
 
 impl Core {
@@ -249,6 +258,7 @@ fn check_tools(core: &Core, path: &str) {
                     let pinged_ok = core.settings.lock().unwrap().results.get("agy").map(|r| r.ok);
                     Some(token.exists() || pinged_ok == Some(true))
                 }
+                "kimi" => Some(usage::kimi_home().join("credentials").join("kimi-code.json").exists()),
                 _ => None,
             }
         };
@@ -315,12 +325,35 @@ fn run_all(app: &AppHandle, core: &Arc<Core>, trigger: &str) {
     *core.progress.lock().unwrap() = None;
     check_tools(core, &path);
     core.running.store(false, Ordering::SeqCst);
+    // A ping also renews each CLI's saved sign-in, so this is a good moment to read usage
+    refresh_usage(app, core);
 
     if !failed.is_empty() {
         let body = core.t(&format!("Ping failed: {} — check the sign-in", failed.join(", ")),
                           &format!("호출 실패: {} — 로그인 상태를 확인하세요", failed.join(", ")));
         let _ = app.notification().builder().title("Earlybolt").body(body).show();
     }
+    update_tray(app, core);
+    let _ = app.emit("changed", ());
+}
+
+// MARK: Usage
+
+fn refresh_usage(app: &AppHandle, core: &Arc<Core>) {
+    if core.usage_busy.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let path = platform::user_path();
+    for t in tools::all() {
+        if !usage::supported(t.id) || platform::find_exe(t.id, &path).is_none() {
+            core.usage.lock().unwrap().remove(t.id);
+            continue;
+        }
+        let u = usage::fetch(t.id, &path, &core.log_dir);
+        core.usage.lock().unwrap().insert(t.id.into(), u);
+    }
+    core.usage_at.store(Local::now().timestamp(), Ordering::SeqCst);
+    core.usage_busy.store(false, Ordering::SeqCst);
     update_tray(app, core);
     let _ = app.emit("changed", ());
 }
@@ -359,6 +392,7 @@ fn update_tray(app: &AppHandle, core: &Arc<Core>) {
         let s = core.settings.lock().unwrap();
         (s.enabled, s.show_time_in_tray, next_slot(&s))
     };
+    let show_usage = core.settings.lock().unwrap().show_usage_in_tray;
     let progress = core.progress.lock().unwrap().clone();
     let next_txt = next.map(|d| d.format("%H:%M").to_string()).unwrap_or_default();
     let tip = if !enabled {
@@ -368,19 +402,38 @@ fn update_tray(app: &AppHandle, core: &Arc<Core>) {
     } else {
         core.t(&format!("Earlybolt · Next ping {next_txt}"), &format!("Earlybolt · 다음 호출 {next_txt}"))
     };
+    // Windows has no tray text, so the tooltip carries the usage there (and on macOS too)
+    let usage_txt = tray_usage(core);
+    let tip = if usage_txt.is_empty() { tip } else { format!("{tip}\n{usage_txt}") };
     let _ = tray.set_icon(Some(tray_icon(core)));
     let _ = tray.set_icon_as_template(cfg!(target_os = "macos"));
     let _ = tray.set_tooltip(Some(&tip));
     #[cfg(target_os = "macos")]
     {
+        let usage_txt = if show_usage { usage_txt } else { String::new() };
         let title = match (&progress, enabled && show_time) {
             (Some(p), _) => Some(format!("{}/{}", p.done + 1, p.total)),
+            _ if !usage_txt.is_empty() && enabled && show_time => Some(format!("{usage_txt} · {next_txt}")),
+            _ if !usage_txt.is_empty() => Some(usage_txt),
             (None, true) => Some(next_txt),
             _ => None,
         };
         let _ = tray.set_title(title);
     }
-    let _ = show_time;
+    let _ = (show_time, show_usage);
+}
+
+/// "C 33% · Cx 0% · A 21% · G 5%": each service's most-used window
+fn tray_usage(core: &Core) -> String {
+    let u = core.usage.lock().unwrap();
+    tools::all().iter().filter_map(|t| {
+        let w = u.get(t.id)?.windows.iter().fold(None::<&usage::Window>, |a, w| match a {
+            Some(a) if a.used >= w.used => Some(a),
+            _ => Some(w),
+        })?;
+        let short = match t.id { "claude" => "C", "codex" => "Cx", "agy" => "A", "grok" => "G", "muse" => "M", "kimi" => "K", _ => t.name };
+        Some(format!("{short} {:.0}%", w.used))
+    }).collect::<Vec<_>>().join(" · ")
 }
 
 fn place_panel(w: &tauri::WebviewWindow) {
@@ -441,6 +494,8 @@ struct ToolDto {
     code_deadline: Option<i64>,
     sign_in_url: Option<String>,
     result: Option<ToolResult>,
+    has_usage: bool,
+    usage: Option<usage::Usage>,
 }
 
 #[derive(Serialize)]
@@ -461,6 +516,8 @@ struct StateDto {
     progress: Option<Progress>,
     last_run: Option<RunSummary>,
     show_time_in_tray: bool,
+    show_usage_in_tray: bool,
+    usage_busy: bool,
     wake_enabled: bool,
     wake_message: String,
     autostart: bool,
@@ -472,6 +529,7 @@ struct StateDto {
 fn get_state(app: AppHandle, core: State<Arc<Core>>) -> StateDto {
     let s = core.settings.lock().unwrap().clone();
     let st = core.status.lock().unwrap().clone();
+    let us = core.usage.lock().unwrap().clone();
     let now = Local::now();
     let current = recent_slot(&s).filter(|d| now < *d + CDuration::hours(5))
         .map(|d| (d.timestamp(), (d + CDuration::hours(5)).timestamp()));
@@ -492,6 +550,8 @@ fn get_state(app: AppHandle, core: State<Arc<Core>>) -> StateDto {
         progress: core.progress.lock().unwrap().clone(),
         last_run: s.last_run.clone(),
         show_time_in_tray: s.show_time_in_tray,
+        show_usage_in_tray: s.show_usage_in_tray,
+        usage_busy: core.usage_busy.load(Ordering::SeqCst),
         wake_enabled: s.wake_enabled,
         wake_message: core.wake_message.lock().unwrap().clone(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
@@ -507,6 +567,8 @@ fn get_state(app: AppHandle, core: State<Arc<Core>>) -> StateDto {
                 code_deadline: ts.code_deadline,
                 sign_in_url: ts.sign_in_url,
                 result: s.results.get(t.id).cloned(),
+                has_usage: usage::supported(t.id),
+                usage: us.get(t.id).cloned(),
             }
         }).collect(),
         version: app.package_info().version.to_string(),
@@ -577,6 +639,21 @@ fn refresh_tools(app: AppHandle, core: State<Arc<Core>>) {
     thread::spawn(move || {
         check_tools(&core, &platform::user_path());
         let _ = app.emit("changed", ());
+    });
+}
+
+/// `force`: the refresh button; otherwise only when the last reading is getting old (panel opened)
+#[tauri::command]
+fn refresh_usage_cmd(app: AppHandle, core: State<Arc<Core>>, force: bool) {
+    let core = core.inner().clone();
+    if !force && Local::now().timestamp() - core.usage_at.load(Ordering::SeqCst) < 60 {
+        return;
+    }
+    thread::spawn(move || {
+        if force {
+            let _ = app.emit("changed", ());
+        }
+        refresh_usage(&app, &core);
     });
 }
 
@@ -802,6 +879,14 @@ fn quit(app: AppHandle) {
 pub fn run() {
     // For testing: `earlybolt --run-once` pings once without UI and exits
     let run_once = std::env::args().any(|a| a == "--run-once");
+    // For testing: `earlybolt --usage` prints each service's usage as JSON and exits
+    if std::env::args().any(|a| a == "--usage") {
+        let path = platform::user_path();
+        let all: HashMap<_, _> = tools::all().into_iter().filter(|t| usage::supported(t.id) && platform::find_exe(t.id, &path).is_some())
+            .map(|t| (t.id, usage::fetch(t.id, &path, &std::env::temp_dir()))).collect();
+        println!("{}", serde_json::to_string_pretty(&all).unwrap_or_default());
+        return;
+    }
     // Development (EARLYBOLT_DEV): never register the build folder as a login item
     let dev = std::env::var("EARLYBOLT_DEV").is_ok();
 
@@ -828,7 +913,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_state, update_settings, run_now, refresh_tools, install_tool, login_tool, submit_code, reopen_sign_in,
-            set_wake, set_autostart, open_log, show_guide, fit_panel, hide_panel, quit
+            set_wake, set_autostart, open_log, show_guide, fit_panel, hide_panel, quit, refresh_usage_cmd
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]
@@ -849,6 +934,9 @@ pub fn run() {
                 mini_awake: Mutex::new(None),
                 wake_message: Mutex::new(String::new()),
                 agy_stdin: Mutex::new(None),
+                usage: Mutex::new(HashMap::new()),
+                usage_busy: AtomicBool::new(false),
+                usage_at: AtomicI64::new(0),
             });
             app.manage(core.clone());
 
@@ -930,6 +1018,10 @@ pub fn run() {
                 let _ = handle.emit("changed", ());
                 loop {
                     tick(&handle, &c);
+                    if Local::now().timestamp() - c.usage_at.load(Ordering::SeqCst) >= USAGE_EVERY {
+                        let (handle, c) = (handle.clone(), c.clone());
+                        thread::spawn(move || refresh_usage(&handle, &c));
+                    }
                     thread::sleep(Duration::from_secs(20));
                 }
             });

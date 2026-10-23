@@ -192,6 +192,10 @@ fn kimi() -> Result<Vec<Window>, String> {
         ("Authorization", &format!("Bearer {token}")),
         ("Accept", "application/json"),
     ])?;
+    kimi_windows(&v)
+}
+
+fn kimi_windows(v: &Value) -> Result<Vec<Window>, String> {
     let num = |v: &Value| v.as_f64().or_else(|| v.as_str()?.parse().ok());
     // {limit, used | remaining, resetTime}
     let percent = |d: &Value| -> Option<(f64, Option<i64>)> {
@@ -216,4 +220,22 @@ fn kimi() -> Result<Vec<Window>, String> {
         return Err("no usage reported".into());
     }
     Ok(windows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kimi_response() {
+        let v: Value = serde_json::from_str(r#"{
+            "usage": {"limit": "100", "remaining": "82", "resetTime": "2026-10-30T00:00:00Z"},
+            "limits": [{"window": {"duration": 300, "timeUnit": "TIME_UNIT_MINUTE"},
+                        "detail": {"limit": 200, "used": 84, "resetTime": "2026-10-24T05:00:00Z"}}]
+        }"#).unwrap();
+        let w = kimi_windows(&v).unwrap();
+        assert_eq!((w[0].kind.as_str(), w[0].used.round()), ("5h", 42.0));
+        assert_eq!((w[1].kind.as_str(), w[1].used.round()), ("week", 18.0));
+        assert!(w[0].resets_at.is_some() && w[1].resets_at.is_some());
+    }
 }

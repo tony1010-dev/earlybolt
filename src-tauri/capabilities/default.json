@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Panel and guide windows",
   "windows": ["panel", "guide"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
 }

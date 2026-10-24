@@ -9,8 +9,8 @@
 <body>
 <!-- Home -->
 <section class="view active" id="home">
-  <header class="row">
-    <div class="brand grow"><span class="bolt">⚡</span> Earlybolt</div>
+  <header class="row" data-tauri-drag-region>
+    <div class="brand grow" data-tauri-drag-region><span class="bolt">⚡</span> Earlybolt</div>
     <button class="icon" id="openSettings" data-i18n-title="settings">⚙</button>
     <label class="switch" data-i18n-title="onOff"><input type="checkbox" id="enabled"><span></span></label>
   </header>
@@ -40,9 +40,9 @@
 
 <!-- Settings -->
 <section class="view" id="settings">
-  <header class="row">
+  <header class="row" data-tauri-drag-region>
     <button class="icon" id="back">‹</button>
-    <div class="brand grow" data-i18n="settings"></div>
+    <div class="brand grow" data-tauri-drag-region data-i18n="settings"></div>
   </header>
 
   <h3 data-i18n="connections"></h3>

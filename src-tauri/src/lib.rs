@@ -14,7 +14,7 @@ use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_notification::NotificationExt as _;
 use tauri_plugin_opener::OpenerExt as _;
@@ -442,6 +442,24 @@ fn place_panel(w: &tauri::WebviewWindow) {
     if w.move_window(pos).is_err() {
         let _ = w.move_window(if cfg!(target_os = "macos") { Position::TopRight } else { Position::BottomRight });
     }
+    keep_on_screen(w);
+}
+
+/// The screen area the panel may use: its monitor minus the taskbar / menu bar
+fn work_area(w: &tauri::WebviewWindow) -> Option<(tauri::PhysicalRect<i32, u32>, f64)> {
+    let m = w.current_monitor().ok().flatten().or_else(|| w.primary_monitor().ok().flatten())?;
+    Some((*m.work_area(), m.scale_factor()))
+}
+
+/// The taskbar can sit on any edge and a tall panel may not fit, so pull the panel back inside the screen
+fn keep_on_screen(w: &tauri::WebviewWindow) {
+    let (Some((a, _)), Ok(pos), Ok(size)) = (work_area(w), w.outer_position(), w.outer_size()) else { return };
+    let (aw, ah) = (a.size.width as i32, a.size.height as i32);
+    let x = pos.x.clamp(a.position.x, (a.position.x + aw - size.width as i32).max(a.position.x));
+    let y = pos.y.clamp(a.position.y, (a.position.y + ah - size.height as i32).max(a.position.y));
+    if (x, y) != (pos.x, pos.y) {
+        let _ = w.set_position(PhysicalPosition::new(x, y));
+    }
 }
 
 fn toggle_panel(app: &AppHandle) {
@@ -477,6 +495,15 @@ fn open_guide(app: &AppHandle) {
         .center()
         .build()
     {
+        // 760 is taller than a 1366x768 or 150%-scaled 1080p screen; shrink it so the title bar stays reachable
+        if let Some((a, scale)) = work_area(&w) {
+            let (aw, ah) = (a.size.width as f64 / scale - 40.0, a.size.height as f64 / scale - 40.0);
+            if aw < 640.0 || ah < 760.0 {
+                let _ = w.set_size(LogicalSize::new(aw.min(640.0), ah.min(760.0)));
+                let _ = w.center();
+            }
+        }
+        keep_on_screen(&w);
         let _ = w.set_focus();
     }
 }
@@ -850,16 +877,19 @@ fn show_guide(app: AppHandle) {
     open_guide(&app);
 }
 
-/// The panel sizes itself to its content (Home and Settings differ in height)
+/// The panel sizes itself to its content (Home and Settings differ in height).
+/// It never grows past the screen; the page scrolls instead (small or scaled Windows screens).
 #[tauri::command]
 fn fit_panel(app: AppHandle, height: f64) {
-    if let Some(w) = app.get_webview_window("panel") {
-        let _ = w.set_size(LogicalSize::new(PANEL_WIDTH, height.clamp(200.0, 900.0)));
-        // On Windows the panel sits above the taskbar, so re-anchor it after the height changes
-        if cfg!(windows) && w.is_visible().unwrap_or(false) {
-            place_panel(&w);
-        }
+    let Some(w) = app.get_webview_window("panel") else { return };
+    let max = work_area(&w).map_or(900.0, |(a, scale)| a.size.height as f64 / scale - 16.0).max(200.0);
+    let before = w.is_visible().unwrap_or(false).then(|| w.outer_position().ok().zip(w.outer_size().ok())).flatten();
+    let _ = w.set_size(LogicalSize::new(PANEL_WIDTH, height.clamp(200.0, max)));
+    // On Windows the panel sits above the taskbar, so keep its bottom edge where it was (also after the user moved it)
+    if let (true, Some((pos, size)), Ok(now)) = (cfg!(windows), before, w.outer_size()) {
+        let _ = w.set_position(PhysicalPosition::new(pos.x, pos.y + size.height as i32 - now.height as i32));
     }
+    keep_on_screen(&w);
 }
 
 #[tauri::command]

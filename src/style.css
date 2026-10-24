@@ -25,6 +25,8 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+/* The panel is capped at the screen height; past that the page scrolls */
+body { height: 100vh; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; }
 body {
   font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   -webkit-user-select: none; user-select: none;
@@ -56,7 +58,9 @@ input[type=time] {
 /* Views */
 .view { display: none; padding: 12px 14px 12px; }
 .view.active { display: block; }
-header { margin-bottom: 4px; }
+header { margin-bottom: 4px; cursor: default; }
+/* Drag the panel by its header; the logo inside must not swallow the press */
+.brand .bolt { pointer-events: none; }
 .brand { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
 .bolt { color: var(--accent); }
 

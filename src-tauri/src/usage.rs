@@ -58,6 +58,12 @@ pub fn supported(id: &str) -> bool {
     matches!(id, "claude" | "codex" | "grok" | "agy" | "kimi")
 }
 
+/// Reading this one means running the CLI. On Windows Antigravity's helper processes open console windows
+/// that flash on screen, so it is not polled there: only after a ping (agy runs then anyway) or on ↻.
+pub fn runs_cli(id: &str) -> bool {
+    id == "agy"
+}
+
 pub fn fetch(id: &str, path: &str, cwd: &Path) -> Usage {
     let r = match id {
         "claude" => claude(),

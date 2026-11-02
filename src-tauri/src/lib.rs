@@ -326,7 +326,7 @@ fn run_all(app: &AppHandle, core: &Arc<Core>, trigger: &str) {
     check_tools(core, &path);
     core.running.store(false, Ordering::SeqCst);
     // A ping also renews each CLI's saved sign-in, so this is a good moment to read usage
-    refresh_usage(app, core);
+    refresh_usage(app, core, true);
 
     if !failed.is_empty() {
         let body = core.t(&format!("Ping failed: {} — check the sign-in", failed.join(", ")),
@@ -339,7 +339,8 @@ fn run_all(app: &AppHandle, core: &Arc<Core>, trigger: &str) {
 
 // MARK: Usage
 
-fn refresh_usage(app: &AppHandle, core: &Arc<Core>) {
+/// `with_cli`: also read the services that need their CLI run (see `usage::runs_cli`); always on outside Windows
+fn refresh_usage(app: &AppHandle, core: &Arc<Core>, with_cli: bool) {
     if core.usage_busy.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -347,6 +348,10 @@ fn refresh_usage(app: &AppHandle, core: &Arc<Core>) {
     for t in tools::all() {
         if !usage::supported(t.id) || platform::find_exe(t.id, &path).is_none() {
             core.usage.lock().unwrap().remove(t.id);
+            continue;
+        }
+        // Keep the last reading
+        if cfg!(windows) && !with_cli && usage::runs_cli(t.id) {
             continue;
         }
         let u = usage::fetch(t.id, &path, &core.log_dir);
@@ -680,7 +685,7 @@ fn refresh_usage_cmd(app: AppHandle, core: State<Arc<Core>>, force: bool) {
         if force {
             let _ = app.emit("changed", ());
         }
-        refresh_usage(&app, &core);
+        refresh_usage(&app, &core, force);
     });
 }
 
@@ -1050,7 +1055,7 @@ pub fn run() {
                     tick(&handle, &c);
                     if Local::now().timestamp() - c.usage_at.load(Ordering::SeqCst) >= USAGE_EVERY {
                         let (handle, c) = (handle.clone(), c.clone());
-                        thread::spawn(move || refresh_usage(&handle, &c));
+                        thread::spawn(move || refresh_usage(&handle, &c, false));
                     }
                     thread::sleep(Duration::from_secs(20));
                 }

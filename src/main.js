@@ -66,7 +66,8 @@ function renderUsage() {
   const cells = state.tools.filter((t) => t.installed && t.has_usage).map((t) => {
     const u = t.usage;
     let body, tip = "";
-    if (!u) body = `<span class="faint">…</span>`;
+    // Windows reads Antigravity only after a ping or on ↻ (its CLI flashes console windows)
+    if (!u) body = `<span class="faint">${state.usage_busy ? "…" : T.usagePress}</span>`;
     else if (u.error) {
       const msg = { stale: T.usageStale, signed_out: T.signInNeeded }[u.error] || T.usageError;
       body = `<span class="faint">⚠ ${msg}</span>`;

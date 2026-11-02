@@ -53,18 +53,11 @@ pub fn user_path() -> String {
     #[cfg(windows)]
     {
         // Installers update the user PATH in the registry; our own process PATH is stale, so read the registry
-        for key in [r"HKCU\Environment", r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment"] {
-            let mut c = command("reg");
-            c.args(["query", key, "/v", "Path"]);
-            if let Some((_, out)) = run_with_timeout(c, Duration::from_secs(10)) {
-                for line in out.lines() {
-                    if let Some(i) = line.find("REG_") {
-                        let rest = &line[i..];
-                        if let Some(v) = rest.splitn(2, char::is_whitespace).nth(1) {
-                            parts.push(expand_env(v.trim()));
-                        }
-                    }
-                }
+        use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+        for (root, key) in [(HKEY_CURRENT_USER, r"Environment"),
+                            (HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")] {
+            if let Some(v) = registry_path(root, key) {
+                parts.push(expand_env(&v));
             }
         }
         parts.push(std::env::var("PATH").unwrap_or_default());
@@ -77,6 +70,28 @@ pub fn user_path() -> String {
             parts.push(d);
         }
         parts.join(";")
+    }
+}
+
+/// Read with the registry API, not `reg query`: its output is in the console code page,
+/// which garbles non-ASCII folders (e.g. a Korean user name)
+#[cfg(windows)]
+fn registry_path(root: windows_sys::Win32::System::Registry::HKEY, key: &str) -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, RRF_NOEXPAND, RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ};
+    let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+    let (key, name) = (wide(key), wide("Path"));
+    let flags = RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ | RRF_NOEXPAND;
+    let mut len: u32 = 0;
+    unsafe {
+        if RegGetValueW(root, key.as_ptr(), name.as_ptr(), flags, std::ptr::null_mut(), std::ptr::null_mut(), &mut len) != 0 {
+            return None;
+        }
+        let mut buf = vec![0u16; len as usize / 2 + 1];
+        len = (buf.len() * 2) as u32;
+        if RegGetValueW(root, key.as_ptr(), name.as_ptr(), flags, std::ptr::null_mut(), buf.as_mut_ptr().cast(), &mut len) != 0 {
+            return None;
+        }
+        Some(String::from_utf16_lossy(&buf).trim_end_matches('\0').to_string())
     }
 }
 
@@ -135,8 +150,9 @@ pub fn run_with_timeout(mut c: Command, timeout: Duration) -> Option<(bool, Stri
     let mut child = c.spawn().ok()?;
     let mut so = child.stdout.take()?;
     let mut se = child.stderr.take()?;
-    let t1 = thread::spawn(move || { let mut s = String::new(); let _ = so.read_to_string(&mut s); s });
-    let t2 = thread::spawn(move || { let mut s = String::new(); let _ = se.read_to_string(&mut s); s });
+    // Lossy: a CLI may print in the Windows code page, and one bad byte must not drop the whole output
+    let t1 = thread::spawn(move || { let mut b = vec![]; let _ = so.read_to_end(&mut b); String::from_utf8_lossy(&b).into_owned() });
+    let t2 = thread::spawn(move || { let mut b = vec![]; let _ = se.read_to_end(&mut b); String::from_utf8_lossy(&b).into_owned() });
     let start = Instant::now();
     let ok = loop {
         match child.try_wait() {
@@ -298,8 +314,11 @@ pub fn set_wake(times: &[u32], on: bool, ko: bool) -> Result<String, String> {
     }
     #[cfg(windows)]
     {
-        // Task Scheduler: a no-op task that wakes the PC before each ping (no admin rights needed)
+        // Task Scheduler: a no-op task that wakes the PC before each ping (no admin rights needed).
+        // The action is `earlybolt --wake`, which exits at once without a window (cmd.exe would flash a console).
         let name = r"Earlybolt\Wake";
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?.display().to_string()
+            .replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
         let _ = command("schtasks").args(["/Delete", "/TN", name, "/F"]).status();
         if !on {
             return Ok(t("Wake schedule removed", "자동 깨우기를 해제했어요"));
@@ -320,7 +339,7 @@ pub fn set_wake(times: &[u32], on: bool, ko: bool) -> Result<String, String> {
     <ExecutionTimeLimit>PT5M</ExecutionTimeLimit>
     <Hidden>true</Hidden>
   </Settings>
-  <Actions Context="Author"><Exec><Command>cmd.exe</Command><Arguments>/c exit</Arguments></Exec></Actions>
+  <Actions Context="Author"><Exec><Command>{exe}</Command><Arguments>--wake</Arguments></Exec></Actions>
 </Task>"#);
         // schtasks requires UTF-16 XML
         let file = std::env::temp_dir().join("earlybolt-wake.xml");

@@ -912,6 +912,10 @@ fn quit(app: AppHandle) {
 // MARK: Startup
 
 pub fn run() {
+    // The Windows wake task runs this: waking the PC was the point, so exit before any UI
+    if std::env::args().any(|a| a == "--wake") {
+        return;
+    }
     // For testing: `earlybolt --run-once` pings once without UI and exits
     let run_once = std::env::args().any(|a| a == "--run-once");
     // For testing: `earlybolt --usage` prints each service's usage as JSON and exits
@@ -1031,6 +1035,19 @@ pub fn run() {
             }
 
             core.apply_power();
+
+            // Windows: re-register the wake task so it points at this install (older versions ran cmd.exe, which flashed a console)
+            if cfg!(windows) && !dev {
+                let s = core.settings.lock().unwrap();
+                if s.wake_enabled && s.mode == Mode::Laptop {
+                    let times = wake_times(&s);
+                    drop(s);
+                    let c = core.clone();
+                    thread::spawn(move || {
+                        let _ = platform::set_wake(&times, true, c.ko());
+                    });
+                }
+            }
 
             // First launch: turn on launch-at-login and show the guide
             let first = !core.settings.lock().unwrap().first_run_done;

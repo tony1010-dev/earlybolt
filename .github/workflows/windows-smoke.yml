@@ -1,0 +1,29 @@
+# Runs the real Windows build on a GitHub runner: finds CLIs, reads usage, opens the panel,
+# registers the wake task, and fails if any console window shows up. Screenshots are uploaded.
+name: Windows smoke test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: npm ci
+      - run: npx tauri build --no-bundle
+      - run: ./.github/scripts/windows-smoke.ps1
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-smoke
+          path: smoke/

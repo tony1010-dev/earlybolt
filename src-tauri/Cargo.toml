@@ -24,7 +24,7 @@ chrono = "0.4"
 ureq = { version = "2", features = ["json"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_System_Power"] }
+windows-sys = { version = "0.59", features = ["Win32_System_Power", "Win32_System_Registry"] }
 
 [profile.release]
 strip = true
